@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { useSelection } from "@/context/SelectionContext";
+import { useSelection, STAGE_LABELS } from "@/context/SelectionContext";
+import type { VerificationStage } from "@/context/SelectionContext";
 import type { VerifiedFact } from "@/lib/facts/schema";
 import {
   Shield,
@@ -15,6 +16,8 @@ import {
   XCircle,
   AlertTriangle,
   Tag,
+  Loader2,
+  Search,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -281,11 +284,60 @@ function FactCard({ fact }: { fact: VerifiedFact }) {
   );
 }
 
+function VerificationProgress({ stage }: { stage: VerificationStage }) {
+  if (stage === "idle" || stage === "complete") return null;
+
+  const stages: VerificationStage[] = ["searching", "verifying", "analyzing"];
+  const currentIdx = stages.indexOf(stage);
+
+  return (
+    <Card className="bg-[#12121a] border-[#1e1e2e]">
+      <CardContent className="pt-5 pb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
+          <span className="text-xs text-indigo-400 font-medium">
+            {STAGE_LABELS[stage]}
+          </span>
+        </div>
+        <div className="space-y-2">
+          {stages.map((s, i) => {
+            const done = i < currentIdx;
+            const active = i === currentIdx;
+            return (
+              <div key={s} className="flex items-center gap-2">
+                {done ? (
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                ) : active ? (
+                  <Loader2 className="w-3 h-3 text-indigo-400 animate-spin" />
+                ) : (
+                  <div className="w-3 h-3 rounded-full border border-[#2a2a3a]" />
+                )}
+                <span
+                  className={`text-[10px] ${
+                    done
+                      ? "text-emerald-400"
+                      : active
+                        ? "text-indigo-400"
+                        : "text-[#52525b]"
+                  }`}
+                >
+                  {STAGE_LABELS[s]}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function EvidencePanel() {
-  const { verification, highlights, activeHighlight, removeHighlight, setActiveHighlight, verifySelection, matchedFacts } =
+  const { verification, highlights, activeHighlight, removeHighlight, setActiveHighlight, verifySelection, matchedFacts, verificationStage } =
     useSelection();
 
   const primaryFact = matchedFacts.length > 0 ? matchedFacts[0] : null;
+  const isLoading = verificationStage !== "idle" && verificationStage !== "complete" && verificationStage !== "error";
 
   return (
     <aside className="w-[350px] min-w-[350px] h-screen bg-[#0d0d14] border-l border-[#1e1e2e] flex flex-col overflow-hidden">
@@ -301,7 +353,10 @@ export function EvidencePanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {!verification && !primaryFact && highlights.length === 0 && (
+        {/* Loading state indicator */}
+        {isLoading && <VerificationProgress stage={verificationStage} />}
+
+        {!verification && !primaryFact && !isLoading && highlights.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <div className="w-16 h-16 rounded-2xl bg-[#12121a] border border-[#1e1e2e] flex items-center justify-center mb-4">
               <Shield className="w-7 h-7 text-[#2a2a3a]" />

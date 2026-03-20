@@ -3,11 +3,11 @@
 import React from "react";
 import { CopilotKit } from "@copilotkit/react-core";
 import { useCopilotReadable, useCopilotAction } from "@copilotkit/react-core";
-import { mockDocument, mockVerifications } from "@/lib/mock-data";
+import { mockDocument } from "@/lib/mock-data";
 import { useSelection } from "@/context/SelectionContext";
 
 function CopilotDocumentContext() {
-  const { highlights, selectedText } = useSelection();
+  const { highlights, selectedText, verifySelection, verificationStage } = useSelection();
 
   useCopilotReadable({
     description: "The current research document being viewed",
@@ -30,10 +30,15 @@ function CopilotDocumentContext() {
     value: selectedText,
   });
 
+  useCopilotReadable({
+    description: "Current verification pipeline status",
+    value: verificationStage,
+  });
+
   useCopilotAction({
     name: "verify-source",
     description:
-      "Verify a claim or piece of text from the research document against its sources",
+      "Verify a claim or piece of text from the research document against its sources. This calls the Python backend verification pipeline.",
     parameters: [
       {
         name: "claim",
@@ -49,16 +54,11 @@ function CopilotDocumentContext() {
       },
     ],
     handler: async ({ claim, section }) => {
-      // Mock verification - returns a structured result
-      const sectionKey = section || "default";
-      const verification =
-        mockVerifications[sectionKey] || mockVerifications.default;
+      verifySelection(claim, section);
       return {
-        verified: true,
-        confidence: verification.confidence,
-        source: verification.sourceName,
-        methodology: verification.methodology,
-        quote: claim,
+        status: "verification_started",
+        claim,
+        message: "Verification pipeline initiated. Check the Evidence Panel for results.",
       };
     },
   });
