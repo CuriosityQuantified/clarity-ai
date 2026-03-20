@@ -4,9 +4,7 @@ Never searches the web. Checks in_context/out_of_context boundaries before
 using any fact. If a fact's out_of_context matches the claim, EXCLUDES it.
 """
 
-from __future__ import annotations
-
-from typing import Any, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
 from langgraph.graph import StateGraph, END
 
@@ -42,7 +40,7 @@ def confidence_label(score: float) -> str:
 def query_facts_tool(
     store: FactStore,
     query: str,
-    context_filter: str | None = None,
+    context_filter: Optional[str] = None,
 ) -> list[VerifiedFact]:
     """Search the fact store. Optionally filter by in_context match."""
     if context_filter:
@@ -55,8 +53,8 @@ def query_facts_tool(
 def compute_confidence(
     facts: list[VerifiedFact],
     claim: str,
-    url_accessible: dict[str, bool] | None = None,
-    text_found_at_url: dict[str, bool] | None = None,
+    url_accessible: Optional[Dict[str, bool]] = None,
+    text_found_at_url: Optional[Dict[str, bool]] = None,
 ) -> float:
     """Confidence scoring per the spec.
 
@@ -112,7 +110,7 @@ def compute_confidence(
 
 class AnalyzerState(TypedDict):
     claim_to_verify: str
-    relevant_facts: list[dict[str, Any]]
+    relevant_facts: List[Dict[str, Any]]
     analysis: str
     confidence_assessment: float
 
