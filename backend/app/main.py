@@ -17,3 +17,9 @@ app.add_middleware(
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "clarity-ai-backend"}
+
+
+# Mount CopilotKit AG-UI endpoint
+from app.copilotkit_handler import mount_copilotkit  # noqa: E402
+
+mount_copilotkit(app)
