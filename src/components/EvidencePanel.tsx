@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useSelection } from "@/context/SelectionContext";
+import type { VerifiedFact } from "@/lib/facts/schema";
 import {
   Shield,
   ExternalLink,
@@ -10,15 +11,21 @@ import {
   FlaskConical,
   Lightbulb,
   Trash2,
+  Clock,
+  XCircle,
+  AlertTriangle,
+  Tag,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 function ConfidenceGauge({ confidence }: { confidence: number }) {
+  // confidence is 0-1 from VerifiedFact, convert to percentage for display
+  const pct = Math.round(confidence * 100);
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (confidence / 100) * circumference;
+  const offset = circumference - (pct / 100) * circumference;
 
   const getColor = (c: number) => {
     if (c >= 90) return { stroke: "url(#gaugeGradientHigh)", text: "text-emerald-400" };
@@ -26,7 +33,7 @@ function ConfidenceGauge({ confidence }: { confidence: number }) {
     return { stroke: "url(#gaugeGradientLow)", text: "text-orange-400" };
   };
 
-  const colors = getColor(confidence);
+  const colors = getColor(pct);
 
   return (
     <div className="flex flex-col items-center">
@@ -45,16 +52,7 @@ function ConfidenceGauge({ confidence }: { confidence: number }) {
             <stop offset="100%" stopColor="#fb923c" />
           </linearGradient>
         </defs>
-        {/* Background ring */}
-        <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          stroke="#1e1e2e"
-          strokeWidth="8"
-        />
-        {/* Value ring */}
+        <circle cx="50" cy="50" r={radius} fill="none" stroke="#1e1e2e" strokeWidth="8" />
         <circle
           cx="50"
           cy="50"
@@ -72,15 +70,222 @@ function ConfidenceGauge({ confidence }: { confidence: number }) {
         />
       </svg>
       <div className="absolute flex flex-col items-center justify-center">
-        <span className={`text-2xl font-bold ${colors.text}`}>{confidence}%</span>
+        <span className={`text-2xl font-bold ${colors.text}`}>{pct}%</span>
+      </div>
+    </div>
+  );
+}
+
+function VerificationStatusBadge({ status }: { status: VerifiedFact["verificationStatus"] }) {
+  switch (status) {
+    case "verified":
+      return (
+        <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 bg-emerald-500/5 text-[9px]">
+          <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+          Verified
+        </Badge>
+      );
+    case "pending":
+      return (
+        <Badge variant="outline" className="border-yellow-500/30 text-yellow-400 bg-yellow-500/5 text-[9px]">
+          <Clock className="w-2.5 h-2.5 mr-1" />
+          Pending
+        </Badge>
+      );
+    case "failed":
+      return (
+        <Badge variant="outline" className="border-red-500/30 text-red-400 bg-red-500/5 text-[9px]">
+          <XCircle className="w-2.5 h-2.5 mr-1" />
+          Failed
+        </Badge>
+      );
+    case "unavailable":
+      return (
+        <Badge variant="outline" className="border-orange-500/30 text-orange-400 bg-orange-500/5 text-[9px]">
+          <AlertTriangle className="w-2.5 h-2.5 mr-1" />
+          Unavailable
+        </Badge>
+      );
+  }
+}
+
+function FactCard({ fact }: { fact: VerifiedFact }) {
+  return (
+    <div className="space-y-3 animate-slide-in-right">
+      {/* Confidence gauge */}
+      <Card className="bg-[#12121a] border-[#1e1e2e]">
+        <CardContent className="pt-6 flex flex-col items-center">
+          <div className="relative">
+            <ConfidenceGauge confidence={fact.confidence} />
+          </div>
+          <p
+            className={`text-xs font-medium mt-3 ${
+              fact.confidence >= 0.9
+                ? "text-emerald-400"
+                : fact.confidence >= 0.8
+                  ? "text-yellow-400"
+                  : "text-orange-400"
+            }`}
+          >
+            {fact.confidence >= 0.95
+              ? "Very High Confidence"
+              : fact.confidence >= 0.85
+                ? "High Confidence"
+                : fact.confidence >= 0.7
+                  ? "Moderate Confidence"
+                  : "Low Confidence"}
+          </p>
+          <div className="mt-2">
+            <VerificationStatusBadge status={fact.verificationStatus} />
+          </div>
+          <p className="text-[10px] text-[#71717a] mt-1">
+            Retrieved {new Date(fact.dateRetrieved).toLocaleDateString()}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Direct quote */}
+      <Card className="bg-[#12121a] border-[#1e1e2e]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-medium text-[#71717a] flex items-center gap-1.5">
+            <Quote className="w-3 h-3" />
+            Matched Quote
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <blockquote className="text-xs text-[#b4b4be] leading-relaxed border-l-2 border-indigo-500/50 pl-3 italic">
+            &ldquo;{fact.quote.length > 200 ? fact.quote.slice(0, 200) + "..." : fact.quote}&rdquo;
+          </blockquote>
+        </CardContent>
+      </Card>
+
+      {/* Source + Verify link */}
+      <Card className="bg-[#12121a] border-[#1e1e2e]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-medium text-[#71717a] flex items-center gap-1.5">
+            <ExternalLink className="w-3 h-3" />
+            Source
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+            <div>
+              {fact.publication && (
+                <p className="text-xs text-white font-medium">{fact.publication}</p>
+              )}
+              {fact.author && (
+                <p className="text-[10px] text-[#a1a1aa]">{fact.author}</p>
+              )}
+              {fact.datePublished && (
+                <p className="text-[10px] text-[#71717a]">
+                  Published {new Date(fact.datePublished).toLocaleDateString()}
+                </p>
+              )}
+              <a
+                href={fact.sourceUrl}
+                className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors font-mono break-all block mt-1"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {fact.sourceUrl}
+              </a>
+              <a
+                href={fact.highlightUrl}
+                className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-[10px] text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/15 transition-all"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="w-2.5 h-2.5" />
+                Verify Source
+              </a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Context tags */}
+      <Card className="bg-[#12121a] border-[#1e1e2e]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-medium text-[#71717a] flex items-center gap-1.5">
+            <Tag className="w-3 h-3" />
+            Context
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {fact.inContext.length > 0 && (
+            <div>
+              <p className="text-[9px] text-[#52525b] uppercase tracking-widest mb-1">Applies to</p>
+              <div className="flex flex-wrap gap-1">
+                {fact.inContext.map((ctx) => (
+                  <Badge
+                    key={ctx}
+                    variant="outline"
+                    className="border-emerald-500/30 text-emerald-400 bg-emerald-500/5 text-[9px]"
+                  >
+                    {ctx}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          {fact.outOfContext.length > 0 && (
+            <div>
+              <p className="text-[9px] text-[#52525b] uppercase tracking-widest mb-1">Does not apply to</p>
+              <div className="flex flex-wrap gap-1">
+                {fact.outOfContext.map((ctx) => (
+                  <Badge
+                    key={ctx}
+                    variant="outline"
+                    className="border-red-500/20 text-[#71717a] bg-red-500/5 text-[9px]"
+                  >
+                    {ctx}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Tags */}
+      {fact.tags.length > 0 && (
+        <Card className="bg-[#12121a] border-[#1e1e2e]">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-[#71717a] flex items-center gap-1.5">
+              <Lightbulb className="w-3 h-3" />
+              Tags
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-1">
+              {fact.tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="outline"
+                  className="border-[#2a2a3a] text-[#a1a1aa] text-[9px]"
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Gathered by */}
+      <div className="text-[9px] text-[#52525b] text-center">
+        Gathered by <span className="text-[#71717a]">{fact.gatheredBy}</span>
       </div>
     </div>
   );
 }
 
 export function EvidencePanel() {
-  const { verification, highlights, activeHighlight, removeHighlight, setActiveHighlight, verifySelection } =
+  const { verification, highlights, activeHighlight, removeHighlight, setActiveHighlight, verifySelection, matchedFacts } =
     useSelection();
+
+  const primaryFact = matchedFacts.length > 0 ? matchedFacts[0] : null;
 
   return (
     <aside className="w-[350px] min-w-[350px] h-screen bg-[#0d0d14] border-l border-[#1e1e2e] flex flex-col overflow-hidden">
@@ -96,7 +301,7 @@ export function EvidencePanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {!verification && highlights.length === 0 && (
+        {!verification && !primaryFact && highlights.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <div className="w-16 h-16 rounded-2xl bg-[#12121a] border border-[#1e1e2e] flex items-center justify-center mb-4">
               <Shield className="w-7 h-7 text-[#2a2a3a]" />
@@ -108,13 +313,53 @@ export function EvidencePanel() {
           </div>
         )}
 
-        {verification && (
+        {/* Show matched VerifiedFact if available, otherwise fall back to legacy verification */}
+        {primaryFact ? (
+          <>
+            <FactCard fact={primaryFact} />
+
+            {/* Additional matched facts */}
+            {matchedFacts.length > 1 && (
+              <>
+                <Separator className="bg-[#1e1e2e]" />
+                <p className="text-[10px] font-medium text-[#71717a] uppercase tracking-widest">
+                  Additional Matches ({matchedFacts.length - 1})
+                </p>
+                {matchedFacts.slice(1).map((fact) => (
+                  <Card key={fact.id} className="bg-[#12121a] border-[#1e1e2e]">
+                    <CardContent className="pt-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <blockquote className="text-[10px] text-[#b4b4be] leading-relaxed border-l-2 border-indigo-500/30 pl-2 italic flex-1">
+                          &ldquo;{fact.quote.length > 100 ? fact.quote.slice(0, 100) + "..." : fact.quote}&rdquo;
+                        </blockquote>
+                        <VerificationStatusBadge status={fact.verificationStatus} />
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-[9px] text-[#71717a]">
+                          {fact.publication} — {Math.round(fact.confidence * 100)}%
+                        </span>
+                        <a
+                          href={fact.highlightUrl}
+                          className="text-[9px] text-indigo-400 hover:text-indigo-300 transition-colors"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Verify
+                        </a>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            )}
+          </>
+        ) : verification ? (
           <div className="space-y-4 animate-slide-in-right">
-            {/* Confidence gauge */}
+            {/* Legacy verification display */}
             <Card className="bg-[#12121a] border-[#1e1e2e]">
               <CardContent className="pt-6 flex flex-col items-center">
                 <div className="relative">
-                  <ConfidenceGauge confidence={verification.confidence} />
+                  <ConfidenceGauge confidence={verification.confidence / 100} />
                 </div>
                 <p
                   className={`text-xs font-medium mt-3 ${
@@ -133,7 +378,6 @@ export function EvidencePanel() {
               </CardContent>
             </Card>
 
-            {/* Direct quote */}
             <Card className="bg-[#12121a] border-[#1e1e2e]">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-medium text-[#71717a] flex items-center gap-1.5">
@@ -150,7 +394,6 @@ export function EvidencePanel() {
               </CardContent>
             </Card>
 
-            {/* Source */}
             <Card className="bg-[#12121a] border-[#1e1e2e]">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-medium text-[#71717a] flex items-center gap-1.5">
@@ -185,7 +428,6 @@ export function EvidencePanel() {
               </CardContent>
             </Card>
 
-            {/* Methodology */}
             <Card className="bg-[#12121a] border-[#1e1e2e]">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-medium text-[#71717a] flex items-center gap-1.5">
@@ -200,7 +442,6 @@ export function EvidencePanel() {
               </CardContent>
             </Card>
 
-            {/* Related findings */}
             <Card className="bg-[#12121a] border-[#1e1e2e]">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-medium text-[#71717a] flex items-center gap-1.5">
@@ -223,7 +464,7 @@ export function EvidencePanel() {
               </CardContent>
             </Card>
           </div>
-        )}
+        ) : null}
 
         {/* Highlights list */}
         {highlights.length > 0 && (
