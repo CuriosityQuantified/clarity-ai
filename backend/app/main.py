@@ -7,7 +7,7 @@ app = FastAPI(title="Clarity AI Backend", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3104", "http://192.168.1.166:3104", "http://192.168.1.166:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
