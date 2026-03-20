@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Clarity AI
+
+AI-powered research document reader with source verification and evidence analysis.
+
+## Overview
+
+Clarity AI is a polished dark-themed research document reader that enables users to verify claims in academic papers. Built with CopilotKit for generative UI, it provides real-time source verification, confidence scoring, and an AI assistant for document analysis.
+
+## Features
+
+- **Three-Panel Layout** — Left sidebar for navigation, center document viewer, right evidence panel
+- **Text Selection & Highlighting** — Select any text in a document to verify its source
+- **Evidence Panel** — Shows verification details including confidence gauge, source citations, methodology, and related findings
+- **AI Chat Assistant** — CopilotKit-powered chat that's aware of the current document context
+- **Dark Theme** — Polished dark UI designed for extended reading sessions
+
+## Tech Stack
+
+- Next.js 14 (App Router) + TypeScript
+- CopilotKit SDK (@copilotkit/react-core, @copilotkit/react-ui, @copilotkit/runtime)
+- Tailwind CSS + shadcn/ui
+- Lucide Icons
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app runs on [http://localhost:3104](http://localhost:3104).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+  app/
+    api/copilotkit/    # CopilotKit runtime endpoint
+    layout.tsx         # Root layout with dark theme
+    page.tsx           # Main page composing all panels
+    globals.css        # Dark theme CSS variables and custom styles
+  components/
+    Sidebar.tsx        # Left navigation panel
+    DocumentViewer.tsx # Center document viewer with text selection
+    EvidencePanel.tsx  # Right panel with verification details
+    ChatPanel.tsx      # CopilotKit chat overlay
+    CopilotProvider.tsx # CopilotKit context and actions
+    ui/                # shadcn/ui components
+  context/
+    SelectionContext.tsx # Shared state for text selection and verification
+  lib/
+    mock-data.ts       # Sample research paper and verification data
+```
 
-## Learn More
+## Phase 1 Status
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This is Phase 1 (Core UI Shell) with mock verification data. Phase 2 will add real AI-powered source verification.
