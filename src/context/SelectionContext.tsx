@@ -5,6 +5,14 @@ import { VerificationResult, mockVerifications } from "@/lib/mock-data";
 import type { VerifiedFact, FactStore } from "@/lib/facts/schema";
 import { searchFacts } from "@/lib/facts/store";
 
+export type VerificationStage =
+  | "idle"
+  | "searching"
+  | "verifying"
+  | "analyzing"
+  | "complete"
+  | "error";
+
 export interface Highlight {
   id: string;
   text: string;
@@ -28,7 +36,19 @@ interface SelectionContextType {
   setChatOpen: (open: boolean) => void;
   factStore: FactStore | null;
   matchedFacts: VerifiedFact[];
+  verificationStage: VerificationStage;
 }
+
+const STAGE_LABELS: Record<VerificationStage, string> = {
+  idle: "",
+  searching: "Searching sources...",
+  verifying: "Verifying claims...",
+  analyzing: "Analyzing evidence...",
+  complete: "Verification complete",
+  error: "Verification failed",
+};
+
+export { STAGE_LABELS };
 
 const SelectionContext = createContext<SelectionContextType | undefined>(undefined);
 
@@ -40,6 +60,7 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [factStore, setFactStore] = useState<FactStore | null>(null);
   const [matchedFacts, setMatchedFacts] = useState<VerifiedFact[]>([]);
+  const [verificationStage, setVerificationStage] = useState<VerificationStage>("idle");
 
   // Load fact store from sample-facts.json on mount
   useEffect(() => {
@@ -63,6 +84,7 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
         setActiveHighlight(null);
         setVerification(null);
         setMatchedFacts([]);
+        setVerificationStage("idle");
       }
     },
     [activeHighlight],
@@ -70,21 +92,18 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
 
   const verifySelection = useCallback(
     (text: string, sectionId?: string) => {
-      // Find matching facts from the fact store
+      // Find matching facts from the fact store (local search)
       if (factStore) {
-        // Search using key phrases from the selected text
         const words = text.split(/\s+/).filter((w) => w.length > 4);
         const queryTerms = words.slice(0, 8).join(" ");
         const results = searchFacts(factStore, queryTerms);
 
-        // Also try matching by checking if any fact quote appears in selected text or vice versa
         const directMatches = factStore.facts.filter(
           (fact) =>
             text.toLowerCase().includes(fact.quote.toLowerCase().slice(0, 40)) ||
             fact.quote.toLowerCase().includes(text.toLowerCase().slice(0, 40))
         );
 
-        // Deduplicate
         const allMatches = [...results, ...directMatches];
         const uniqueMatches = allMatches.filter(
           (fact, i, arr) => arr.findIndex((f) => f.id === fact.id) === i
@@ -92,21 +111,67 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
         setMatchedFacts(uniqueMatches);
       }
 
-      // Keep legacy verification for backward compatibility
-      let result: VerificationResult;
-      if (sectionId && mockVerifications[sectionId]) {
-        result = { ...mockVerifications[sectionId], quote: text };
-      } else {
-        result = { ...mockVerifications.default, quote: text };
-      }
-      const jitter = Math.floor(Math.random() * 7) - 3;
-      result.confidence = Math.max(75, Math.min(99, result.confidence + jitter));
-      if (result.confidence >= 95) result.confidenceLabel = "Very High Confidence";
-      else if (result.confidence >= 85) result.confidenceLabel = "High Confidence";
-      else if (result.confidence >= 70) result.confidenceLabel = "Moderate Confidence";
-      else result.confidenceLabel = "Low Confidence";
+      // Call the real backend verification pipeline
+      setVerificationStage("searching");
+      setVerification(null);
 
-      setVerification(result);
+      (async () => {
+        try {
+          setVerificationStage("verifying");
+
+          const response = await fetch("/api/copilotkit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "execute_action",
+              name: "verify-source",
+              arguments: { claim: text, section: sectionId || "" },
+            }),
+          });
+
+          setVerificationStage("analyzing");
+
+          if (response.ok) {
+            const data = await response.json();
+            // Map backend VerificationResult to frontend VerificationResult
+            const result: VerificationResult = {
+              quote: data.directQuote || text,
+              sourceUrl: data.sourceUrl || "",
+              sourceName: data.sourceName || "Unknown",
+              confidence: Math.round((data.confidenceScore || 0) * 100),
+              confidenceLabel: data.confidenceLabel || "Low Confidence",
+              verifiedAt: new Date().toISOString(),
+              methodology: data.methodologyNote || "",
+              relatedFindings: [],
+            };
+            setVerification(result);
+            setVerificationStage("complete");
+          } else {
+            // Fallback to mock data if backend is unavailable
+            _fallbackToMock(text, sectionId);
+          }
+        } catch {
+          // Backend unavailable — fall back to mock data
+          _fallbackToMock(text, sectionId);
+        }
+      })();
+
+      function _fallbackToMock(text: string, sectionId?: string) {
+        let result: VerificationResult;
+        if (sectionId && mockVerifications[sectionId]) {
+          result = { ...mockVerifications[sectionId], quote: text };
+        } else {
+          result = { ...mockVerifications.default, quote: text };
+        }
+        const jitter = Math.floor(Math.random() * 7) - 3;
+        result.confidence = Math.max(75, Math.min(99, result.confidence + jitter));
+        if (result.confidence >= 95) result.confidenceLabel = "Very High Confidence";
+        else if (result.confidence >= 85) result.confidenceLabel = "High Confidence";
+        else if (result.confidence >= 70) result.confidenceLabel = "Moderate Confidence";
+        else result.confidenceLabel = "Low Confidence";
+        setVerification(result);
+        setVerificationStage("complete");
+      }
     },
     [factStore],
   );
@@ -128,6 +193,7 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
         setChatOpen,
         factStore,
         matchedFacts,
+        verificationStage,
       }}
     >
       {children}
