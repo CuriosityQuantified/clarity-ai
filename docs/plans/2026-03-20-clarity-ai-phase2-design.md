@@ -55,8 +55,8 @@ class VerifiedFact(BaseModel):
     publication_date: str | None     # When source was published
     retrieval_timestamp: str         # When fact was gathered (ISO 8601)
     context: str                     # Methodology, sample, conditions + surrounding paragraph
-    applies_to: list[str]           # Specific scope boundaries (REQUIRED, ≥1)
-    does_not_apply_to: list[str]    # Limitations (REQUIRED, ≥1)
+    in_context: list[str]           # What this fact applies to (REQUIRED, ≥1)
+    out_of_context: list[str]       # What this fact does NOT apply to (REQUIRED, ≥1)
     verified: Literal["YES", "PARTIAL", "UNABLE_TO_VERIFY"]
     confidence: Literal["HIGH", "MODERATE", "LOW"]
     confidence_score: float         # 0.0-1.0 numeric for the gauge
@@ -183,7 +183,8 @@ Key design decisions:
           source_url: str          # Verified URL
           source_url_highlight: str  # URL with #:~:text= fragment
           source_name: str
-          context_boundaries: dict  # applies_to, does_not_apply_to
+          in_context: list[str]     # What this evidence applies to
+          out_of_context: list[str] # What this evidence does NOT apply to
           methodology_note: str | None
       ```
   - Conditional edges: if fact gatherer returns [NO DATA], skip analysis, return low-confidence "Unable to verify"
@@ -276,8 +277,8 @@ def compute_confidence(facts: list[VerifiedFact], claim: str) -> float:
         elif fact.verified == "PARTIAL":
             base += 0.1
 
-        # Context alignment (claim matches applies_to scope)
-        if claim_in_scope(claim, fact.applies_to):
+        # Context alignment (claim matches in_context scope)
+        if claim_in_scope(claim, fact.in_context):
             base += 0.2
 
         scores.append(min(base, 1.0))
